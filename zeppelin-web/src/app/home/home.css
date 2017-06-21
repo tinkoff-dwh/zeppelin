@@ -167,11 +167,11 @@ a.navbar-brand:hover {
   width: 100%;
 }
 
-#notebook-names {
+.notebook-items {
   list-style: none;
 }
 
-#notebook-names > .filter-names {
+.notebook-items > .filter-names {
   margin: 5px 0;
 }
 

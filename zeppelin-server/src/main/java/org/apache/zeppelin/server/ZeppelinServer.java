@@ -57,6 +57,7 @@ import org.apache.zeppelin.search.LuceneSearch;
 import org.apache.zeppelin.search.SearchService;
 import org.apache.zeppelin.socket.NotebookServer;
 import org.apache.zeppelin.user.Credentials;
+import org.apache.zeppelin.users.UsersRepo;
 import org.apache.zeppelin.utils.SecurityUtils;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.HttpConfiguration;
@@ -86,6 +87,7 @@ public class ZeppelinServer extends Application {
   public static Server jettyWebServer;
   public static NotebookServer notebookWsServer;
   public static Helium helium;
+  public static UsersRepo usersRepo;
 
   private final InterpreterSettingManager interpreterSettingManager;
   private SchedulerFactory schedulerFactory;
@@ -155,6 +157,7 @@ public class ZeppelinServer extends Application {
     this.noteSearchService = new LuceneSearch();
     this.notebookAuthorization = NotebookAuthorization.init(conf);
     this.credentials = new Credentials(conf.credentialsPersist(), conf.getCredentialsPath());
+    this.usersRepo = new UsersRepo(conf.getUsersInfoPath());
     notebook = new Notebook(conf,
         notebookRepo, schedulerFactory, replFactory, interpreterSettingManager, notebookWsServer,
             noteSearchService, notebookAuthorization, credentials);
