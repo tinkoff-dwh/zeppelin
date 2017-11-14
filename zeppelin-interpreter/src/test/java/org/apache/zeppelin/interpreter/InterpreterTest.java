@@ -19,7 +19,6 @@ package org.apache.zeppelin.interpreter;
 
 import java.util.Properties;
 
-import org.apache.zeppelin.user.AuthenticationInfo;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -50,40 +49,6 @@ public class InterpreterTest {
     assertEquals(1, intp.getProperties().size());
     assertEquals("v2", intp.getProperties().get("p1"));
     assertEquals("v2", intp.getProperty("p1"));
-  }
-
-  @Test
-  public void testPropertyWithReplacedContextFields() {
-    String noteId = "testNoteId";
-    String paragraphTitle = "testParagraphTitle";
-    String paragraphText = "testParagraphText";
-    String paragraphId = "testParagraphId";
-    String user = "username";
-    InterpreterContext.set(new InterpreterContext(noteId,
-        paragraphId,
-        null,
-        paragraphTitle,
-        paragraphText,
-        new AuthenticationInfo("testUser", null, "testTicket"),
-        null,
-        null,
-        null,
-        null,
-        null,
-        null));
-    Properties p = new Properties();
-    p.put("p1", "replName #{noteId}, #{paragraphTitle}, #{paragraphId}, #{paragraphText}, #{replName}, #{noteId}, #{user}," +
-        " #{authenticationInfo}");
-    Interpreter intp = new DummyInterpreter(p);
-    intp.setUserName(user);
-    String actual = intp.getProperty("p1");
-    InterpreterContext.remove();
-
-    assertEquals(
-        String.format("replName %s, #{paragraphTitle}, #{paragraphId}, #{paragraphText}, , %s, %s, #{authenticationInfo}", noteId,
-            noteId, user),
-        actual
-    );
   }
 
   public static class DummyInterpreter extends Interpreter {

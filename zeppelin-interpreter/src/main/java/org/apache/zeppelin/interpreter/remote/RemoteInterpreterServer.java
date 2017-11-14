@@ -610,6 +610,8 @@ public class RemoteInterpreterServer
         if (!lazy.isOpen()) {
           lazy.open();
           result = lazy.executePrecode(context);
+        } else {
+          lazy.replaceContextParameters(context);
         }
 
         if (result == null || result.code() == Code.SUCCESS) {

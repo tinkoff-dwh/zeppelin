@@ -148,12 +148,14 @@ public abstract class Interpreter {
   public static Logger logger = LoggerFactory.getLogger(Interpreter.class);
   private InterpreterGroup interpreterGroup;
   private URL[] classloaderUrls;
+  private final Properties propertiesSource;
   protected Properties properties;
-  protected String userName;
+  private String userName;
 
   @ZeppelinApi
   public Interpreter(Properties properties) {
     this.properties = properties;
+    this.propertiesSource = properties;
   }
 
   public void setProperties(Properties properties) {
@@ -180,8 +182,6 @@ public abstract class Interpreter {
       }
     }
 
-    replaceContextParameters(p);
-
     return p;
   }
 
@@ -190,6 +190,13 @@ public abstract class Interpreter {
     logger.debug("key: {}, value: {}", key, getProperties().getProperty(key));
 
     return getProperties().getProperty(key);
+  }
+
+  @ZeppelinApi
+  public Properties getPropertiesSource() {
+    Properties p = new Properties();
+    p.putAll(propertiesSource);
+    return p;
   }
 
   @ZeppelinApi
@@ -330,42 +337,6 @@ public abstract class Interpreter {
       }
     }
     return null;
-  }
-
-  /**
-   * Replace markers #{contextFieldName} by values from {@link InterpreterContext} fields
-   * with same name and marker #{user}. If value == null then replace by empty string.
-   */
-  private void replaceContextParameters(Properties properties) {
-    InterpreterContext interpreterContext = InterpreterContext.get();
-    if (interpreterContext != null) {
-      String markerTemplate = "#\\{%s\\}";
-      List<String> skipFields = Arrays.asList("paragraphTitle", "paragraphId", "paragraphText");
-      List typesToProcess = Arrays.asList(String.class, Double.class, Float.class, Short.class,
-          Byte.class, Character.class, Boolean.class, Integer.class, Long.class);
-      for (String key : properties.stringPropertyNames()) {
-        String p = properties.getProperty(key);
-        if (StringUtils.isNotEmpty(p)) {
-          for (Field field : InterpreterContext.class.getDeclaredFields()) {
-            Class clazz = field.getType();
-            if (!skipFields.contains(field.getName()) && (typesToProcess.contains(clazz)
-                || clazz.isPrimitive())) {
-              Object value = null;
-              try {
-                value = FieldUtils.readField(field, interpreterContext, true);
-              } catch (Exception e) {
-                logger.error("Cannot read value of field {0}", field.getName());
-              }
-              p = p.replaceAll(String.format(markerTemplate, field.getName()),
-                  value != null ? value.toString() : StringUtils.EMPTY);
-            }
-          }
-          p = p.replaceAll(String.format(markerTemplate, "user"),
-              StringUtils.defaultString(userName, StringUtils.EMPTY));
-          properties.setProperty(key, p);
-        }
-      }
-    }
   }
 
   /**
