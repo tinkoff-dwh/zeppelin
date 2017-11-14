@@ -103,6 +103,7 @@ public class JDBCInterpreter extends KerberosInterpreter {
   static final String USER_KEY = "user";
   static final String PASSWORD_KEY = "password";
   static final String PRECODE_KEY = "precode";
+  static final String SESSION_PRECODE_KEY = "sessionPrecode";
   static final String COMPLETER_SCHEMA_FILTERS_KEY = "completer.schemaFilters";
   static final String COMPLETER_TTL_KEY = "completer.ttlInSeconds";
   static final String DEFAULT_COMPLETER_TTL = "120";
@@ -110,6 +111,7 @@ public class JDBCInterpreter extends KerberosInterpreter {
   static final String JDBC_JCEKS_FILE = "jceks.file";
   static final String JDBC_JCEKS_CREDENTIAL_KEY = "jceks.credentialKey";
   static final String PRECODE_KEY_TEMPLATE = "%s.precode";
+  static final String SESSION_PRECODE_KEY_TEMPLATE = "%s.sessionPrecode";
   static final String DOT = ".";
 
   private static final char WHITESPACE = ' ';
@@ -125,6 +127,7 @@ public class JDBCInterpreter extends KerberosInterpreter {
   static final String DEFAULT_USER = DEFAULT_KEY + DOT + USER_KEY;
   static final String DEFAULT_PASSWORD = DEFAULT_KEY + DOT + PASSWORD_KEY;
   static final String DEFAULT_PRECODE = DEFAULT_KEY + DOT + PRECODE_KEY;
+  static final String DEFAULT_SESSION_PRECODE = DEFAULT_KEY + DOT + SESSION_PRECODE_KEY;
 
   static final String EMPTY_COLUMN_VALUE = "";
 
@@ -707,6 +710,13 @@ public class JDBCInterpreter extends KerberosInterpreter {
 
         try {
           getJDBCConfiguration(user).saveStatement(paragraphId, statement);
+
+          String sessionPrecode =
+              getProperty(String.format(SESSION_PRECODE_KEY_TEMPLATE, propertyKey));
+          
+          if (StringUtils.isNotBlank(sessionPrecode)) {
+            statement.execute(sessionPrecode);
+          }
 
           boolean isResultSetAvailable = statement.execute(sqlToExecute);
           getJDBCConfiguration(user).setConnectionInDBDriverPoolSuccessful(propertyKey);

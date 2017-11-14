@@ -125,6 +125,11 @@ The JDBC interpreter properties are defined by default like below.
     <td>Some SQL which executes every time after initialization of the interpreter (see <a href="../usage/interpreter/overview.html#interpreter-binding-mode">Binding mode</a>)</td>
   </tr>
   <tr>
+    <td>default.sessionPrecode</td>
+    <td></td>
+    <td>SQL code which executed before the SQL from paragraph, in the same database session (database connection)</td>
+  </tr>
+  <tr>
     <td>default.completer.schemaFilters</td>
     <td></td>
     <td>Сomma separated schema (schema = catalog = database) filters to get metadata for completions. Supports '%' symbol is equivalent to any set of characters. (ex. prod_v_%,public%,info)</td>
