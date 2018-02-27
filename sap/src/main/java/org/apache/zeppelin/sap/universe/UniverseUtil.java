@@ -492,11 +492,19 @@ public class UniverseUtil {
           if (token.equalsIgnoreCase(MARKER_AND) || token.equalsIgnoreCase(MARKER_OR)) {
             if (rightOperand.matches("^\\[.*\\]$")) {
               UniverseNodeInfo rightOperandInfo = nodeInfos.get(rightOperand);
+              if (rightOperandInfo == null) {
+                throw new UniverseException(String.format("Not found information about: \"%s\"",
+                    rightOperand));
+              }
               rightOperand = String.format(PREDEFINED_FILTER_TEMPLATE,
                   rightOperandInfo.getNodePath(), rightOperandInfo.getId());
             }
             if (leftOperand.matches("^\\[.*\\]$")) {
               UniverseNodeInfo leftOperandInfo = nodeInfos.get(leftOperand);
+              if (leftOperandInfo == null) {
+                throw new UniverseException(String.format("Not found information about: \"%s\"",
+                    leftOperand));
+              }
               leftOperand = String.format(PREDEFINED_FILTER_TEMPLATE, leftOperandInfo.getNodePath(),
                   leftOperandInfo.getId());
             }
@@ -511,7 +519,10 @@ public class UniverseUtil {
           }
 
           UniverseNodeInfo leftOperandInfo = nodeInfos.get(leftOperand);
-
+          if (leftOperandInfo == null) {
+            throw new UniverseException(String.format("Not found information about: \"%s\"",
+                leftOperand));
+          }
           if (token.equalsIgnoreCase(MARKER_IN) || token.equalsIgnoreCase(MARKER_NOT_IN)) {
             String listValues = rightOperand.replaceAll("^\\(|\\)$", "").trim();
             boolean startItem = false;
@@ -554,9 +565,6 @@ public class UniverseUtil {
               tmp.append(CONST_OPERAND_END_TEMPLATE);
               tmp.append(COMPRASION_END_TEMPLATE);
               stack.push(tmp.toString());
-            } else {
-              throw new UniverseException(String.format("Incorrect syntax near: \"%s\"",
-                  leftOperand));
             }
             continue;
           }
@@ -565,7 +573,7 @@ public class UniverseUtil {
           UniverseNodeInfo rightOperandInfo = null;
           if (rightOperand.startsWith("[") && rightOperand.endsWith("]")) {
             rightOperandInfo = nodeInfos.get(rightOperand);
-            if (rightOperand == null) {
+            if (rightOperandInfo == null) {
               throw new UniverseException(String.format("Not found information about: \"%s\"",
                   rightOperand));
             }
