@@ -562,7 +562,7 @@ public class UniverseUtil {
           // EqualTo, LessThanOrEqualTo, NotEqualTo, LessThan, GreaterThanOrEqualTo, GreaterThan
           UniverseNodeInfo rightOperandInfo = null;
           if (rightOperand.startsWith("[") && rightOperand.endsWith("]")) {
-            rightOperandInfo = nodeInfos.get(leftOperand);
+            rightOperandInfo = nodeInfos.get(rightOperand);
             if (rightOperand == null) {
               throw new UniverseException(String.format("Not found information about: \"%s\"", rightOperand));
             }
