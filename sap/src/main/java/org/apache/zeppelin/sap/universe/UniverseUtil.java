@@ -243,6 +243,20 @@ public class UniverseUtil {
                 whereBuf.append(c);
             }
           } else if (pathClosed) {
+            if (c == 'a' && i < array.length - 2 &&
+                text.substring(i, i + 3).equalsIgnoreCase("and")) {
+              i += 3;
+              whereBuf.append(MARKER_AND);
+              operatorPosition = false;
+              continue;
+            }
+            if (c == 'щ' && i < array.length - 1 &&
+                text.substring(i, i + 2).equalsIgnoreCase("or")) {
+              i += 2;
+              whereBuf.append(MARKER_OR);
+              operatorPosition = false;
+              continue;
+            }
             if (operatorPosition) {
               switch (c) {
                 case '=':
@@ -349,22 +363,7 @@ public class UniverseUtil {
                   whereBuf.append(c);
               }
             } else {
-              switch (c) {
-                case 'a':
-                  if (i < array.length - 2 && text.substring(i, i + 3).equalsIgnoreCase("and")) {
-                    i += 3;
-                    whereBuf.append(MARKER_AND);
-                    break;
-                  }
-                case 'o':
-                  if (i < array.length - 1 && text.substring(i, i + 2).equalsIgnoreCase("or")) {
-                    i += 2;
-                    whereBuf.append(MARKER_OR);
-                    break;
-                  }
-                default:
-                  whereBuf.append(c);
-              }
+              whereBuf.append(c);
             }
           } else {
             whereBuf.append(c);
@@ -482,11 +481,15 @@ public class UniverseUtil {
 
         if (token.equalsIgnoreCase(MARKER_AND) || token.equalsIgnoreCase(MARKER_OR)) {
           // if filters
-          if (leftOperand == null && rightOperand.matches("^\\[.*\\]$")) {
-            leftOperand = revertReplace(stack.pop());
+          if (rightOperand.matches("^\\[.*\\]$")) {
             UniverseNodeInfo rightOperandInfo = nodeInfos.get(rightOperand);
             rightOperand = String.format(PREDEFINED_FILTER_TEMPLATE,
                 rightOperandInfo.getNodePath(), rightOperandInfo.getId());
+          }
+          if (leftOperand.matches("^\\[.*\\]$")) {
+            UniverseNodeInfo leftOperandInfo = nodeInfos.get(leftOperand);
+            leftOperand = String.format(PREDEFINED_FILTER_TEMPLATE,
+                leftOperandInfo.getNodePath(), leftOperandInfo.getId());
           }
           tmp.append(String.format("<%s>\n", operator));
           tmp.append(leftOperand);
