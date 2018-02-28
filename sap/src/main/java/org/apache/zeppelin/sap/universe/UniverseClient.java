@@ -153,9 +153,10 @@ public class UniverseClient {
       setHeaders(httpPost, token);
       String where = StringUtils.isNotBlank(query.getWhere()) ?
           String.format(filterPartTemplate, query.getWhere()) : StringUtils.EMPTY;
-      httpPost.setEntity(new StringEntity(
-          String.format(createQueryRequestTemplate, query.getUniverseInfo().getType(),
-              query.getUniverseInfo().getId(), query.getSelect(), where), "UTF-8"));
+      String xml = String.format(createQueryRequestTemplate, query.getUniverseInfo().getType(),
+          query.getUniverseInfo().getId(), query.getSelect(), where);
+      logger.info(String.format("Create query xml: %s", xml));
+      httpPost.setEntity(new StringEntity(xml, "UTF-8"));
       HttpResponse response = httpClient.execute(httpPost);
 
       if (response.getStatusLine().getStatusCode() == 200) {
