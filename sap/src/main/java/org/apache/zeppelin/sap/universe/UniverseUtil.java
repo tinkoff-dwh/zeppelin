@@ -641,6 +641,8 @@ public class UniverseUtil {
             if (!operations.contains(p)) {
               result = true;
               break;
+            } else {
+              return false;
             }
           }
           count--;
