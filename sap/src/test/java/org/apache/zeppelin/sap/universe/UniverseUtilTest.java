@@ -199,14 +199,14 @@ public class UniverseUtilTest {
   public void testFailConvertWithoutUniverse() throws UniverseException {
     String request = "universe ;\n" +
         "select [Measure].[name5]\n" +
-        "where [Filter].[name3] and [Dimension].[Test].[name2] > 1";
+        "where [Filter].[name3] and [Dimension].[Test].[name2] > 1;";
     universeUtil.convertQuery(request, universeClient, null);
   }
 
   @Test(expected = UniverseException.class)
   public void testFailConvertWithIncorrectSelect() throws UniverseException {
     String request = "universe [testUniverse];\n" +
-        "select [not].[exist]";
+        "select [not].[exist];";
     universeUtil.convertQuery(request, universeClient, null);
   }
 }

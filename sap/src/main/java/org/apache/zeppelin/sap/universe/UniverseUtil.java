@@ -54,6 +54,7 @@ public class UniverseUtil {
   private static final String MARKER_NOT_IN = "#NotInList#";
   private static final String MARKER_NULL = "#IsNull#";
   private static final String MARKER_NOT_NULL = "#IsNotNull#";
+  private static final String MARKER_FILTER = "#filter#";
   private static final String MARKER_AND = "#and#";
   private static final String MARKER_OR = "#or#";
   private static final String MARKER_BACKSPACE = "#backspace#";
@@ -77,12 +78,14 @@ public class UniverseUtil {
     OPERATIONS.put(MARKER_NOT_IN, 1);
     OPERATIONS.put(MARKER_NULL, 1);
     OPERATIONS.put(MARKER_NOT_NULL, 1);
+    OPERATIONS.put(MARKER_FILTER, 1);
     OPERATIONS.put(MARKER_AND, 2);
     OPERATIONS.put(MARKER_OR, 3);
   }
 
   public UniverseQuery convertQuery(String text, UniverseClient client, String token)
       throws UniverseException {
+    text = text.trim();
     StringBuilder select = new StringBuilder();
     StringBuilder universe = new StringBuilder();
     StringBuilder buf = new StringBuilder();
@@ -121,6 +124,16 @@ public class UniverseUtil {
         pathClosed = true;
         if (wherePart) {
           operatorPosition = true;
+          if (i + 1 == array.length || (array[i + 1] != '.'
+              && isFilter(String.format("%s]", whereBuf.toString()), text.substring(i + 1)))) {
+            whereBuf.append(c);
+            whereBuf.append(MARKER_FILTER);
+            if (i + 1 == array.length) {
+              wherePart = false;
+              where = parseWhere(whereBuf.toString(), nodeInfos);
+            }
+            continue;
+          }
         }
       }
       if (c == '(' && wherePart && pathClosed && singleQuoteClosed) {
@@ -241,14 +254,14 @@ public class UniverseUtil {
           } else if (pathClosed) {
             if ((c == 'a' || c == 'A') && i < array.length - 2
                 && text.substring(i, i + 3).equalsIgnoreCase("and")) {
-              i += 3;
+              i += 2;
               whereBuf.append(MARKER_AND);
               operatorPosition = false;
               continue;
             }
             if ((c == 'o' || c == 'O') && i < array.length - 1
                 && text.substring(i, i + 2).equalsIgnoreCase("or")) {
-              i += 2;
+              i += 1;
               whereBuf.append(MARKER_OR);
               operatorPosition = false;
               continue;
@@ -463,143 +476,142 @@ public class UniverseUtil {
     StringTokenizer tokenizer = new StringTokenizer(rpn, " ");
 
     Stack<String> stack = new Stack();
-    if (tokenizer.countTokens() == 1) {
-      String token = revertReplace(tokenizer.nextToken());
-      if (token.matches("^\\[.*\\]$")) {
-        UniverseNodeInfo operandInfo = nodeInfos.get(token);
-        stack.push(String.format(PREDEFINED_FILTER_TEMPLATE, operandInfo.getNodePath(),
-            operandInfo.getId()));
-      }
-    } else {
-      while (tokenizer.hasMoreTokens()) {
-        StringBuilder tmp = new StringBuilder();
-        String token = tokenizer.nextToken();
-        if (!OPERATIONS.keySet().contains(token)) {
-          stack.push(token.trim());
-        } else {
-          String rightOperand = revertReplace(stack.pop());
-          String operator = token.replaceAll("^#|#$", "");
 
-          if (token.equalsIgnoreCase(MARKER_NOT_NULL) || token.equalsIgnoreCase(MARKER_NULL)) {
+    while (tokenizer.hasMoreTokens()) {
+      StringBuilder tmp = new StringBuilder();
+      String token = tokenizer.nextToken();
+      if (!OPERATIONS.keySet().contains(token)) {
+        stack.push(token.trim());
+      } else {
+        String rightOperand = revertReplace(stack.pop());
+        String operator = token.replaceAll("^#|#$", "");
+
+        if (token.equalsIgnoreCase(MARKER_NOT_NULL) || token.equalsIgnoreCase(MARKER_NULL)) {
+          UniverseNodeInfo rightOperandInfo = nodeInfos.get(rightOperand);
+          stack.push(String.format(COMPARISON_FILTER, rightOperandInfo.getId(),
+              rightOperandInfo.getNodePath(), operator));
+          continue;
+        }
+
+        if (token.equalsIgnoreCase(MARKER_FILTER)) {
+          UniverseNodeInfo rightOperandInfo = nodeInfos.get(rightOperand);
+          stack.push(String.format(PREDEFINED_FILTER_TEMPLATE, rightOperandInfo.getNodePath(),
+              rightOperandInfo.getId()));
+          continue;
+        }
+
+        String leftOperand = stack.empty() ? null : revertReplace(stack.pop());
+
+        if (token.equalsIgnoreCase(MARKER_AND) || token.equalsIgnoreCase(MARKER_OR)) {
+          if (rightOperand.matches("^\\[.*\\]$")) {
             UniverseNodeInfo rightOperandInfo = nodeInfos.get(rightOperand);
-            stack.push(String.format(COMPARISON_FILTER, rightOperandInfo.getId(),
-                rightOperandInfo.getNodePath(), operator));
-            continue;
-          }
-
-          String leftOperand = stack.empty() ? null : revertReplace(stack.pop());
-
-          if (token.equalsIgnoreCase(MARKER_AND) || token.equalsIgnoreCase(MARKER_OR)) {
-            if (rightOperand.matches("^\\[.*\\]$")) {
-              UniverseNodeInfo rightOperandInfo = nodeInfos.get(rightOperand);
-              if (rightOperandInfo == null) {
-                throw new UniverseException(String.format("Not found information about: \"%s\"",
-                    rightOperand));
-              }
-              rightOperand = String.format(PREDEFINED_FILTER_TEMPLATE,
-                  rightOperandInfo.getNodePath(), rightOperandInfo.getId());
-            }
-            if (leftOperand.matches("^\\[.*\\]$")) {
-              UniverseNodeInfo leftOperandInfo = nodeInfos.get(leftOperand);
-              if (leftOperandInfo == null) {
-                throw new UniverseException(String.format("Not found information about: \"%s\"",
-                    leftOperand));
-              }
-              leftOperand = String.format(PREDEFINED_FILTER_TEMPLATE, leftOperandInfo.getNodePath(),
-                  leftOperandInfo.getId());
-            }
-            tmp.append(String.format("<%s>\n", operator));
-            tmp.append(leftOperand);
-            tmp.append("\n");
-            tmp.append(rightOperand);
-            tmp.append("\n");
-            tmp.append(String.format("</%s>\n", operator));
-            stack.push(tmp.toString());
-            continue;
-          }
-
-          UniverseNodeInfo leftOperandInfo = nodeInfos.get(leftOperand);
-          if (leftOperandInfo == null) {
-            throw new UniverseException(String.format("Not found information about: \"%s\"",
-                leftOperand));
-          }
-          if (token.equalsIgnoreCase(MARKER_IN) || token.equalsIgnoreCase(MARKER_NOT_IN)) {
-            String listValues = rightOperand.replaceAll("^\\(|\\)$", "").trim();
-            boolean startItem = false;
-            List<String> values = new ArrayList<>();
-            StringBuilder value = new StringBuilder();
-            boolean isNumericList = false;
-            if (listValues.charAt(0) != '\'') {
-              isNumericList = true;
-            }
-            if (isNumericList) {
-              String[] nums = rightOperand.split(",");
-              for (String num : nums) {
-                values.add(num.trim());
-              }
-            } else {
-              for (int i = 0; i < listValues.length(); i++) {
-                char c = listValues.charAt(i);
-                if (c == '\'' && (i == 0 || listValues.charAt(i - 1) != '\\')) {
-                  startItem = !startItem;
-                  if (!startItem) {
-                    values.add(value.toString());
-                    value = new StringBuilder();
-                  }
-                  continue;
-                }
-                if (startItem) {
-                  value.append(c);
-                }
-              }
-            }
-
-            if (!values.isEmpty()) {
-              tmp.append(String.format(COMPRASION_START_TEMPLATE, leftOperandInfo.getNodePath(),
-                  operator, leftOperandInfo.getId()));
-              tmp.append(CONST_OPERAND_START_TEMPLATE);
-              String type = isNumericList ? "Numeric" : "String";
-              for (String v : values) {
-                tmp.append(String.format(CONST_OPERAND_VALUE_TEMPLATE, type, v));
-              }
-              tmp.append(CONST_OPERAND_END_TEMPLATE);
-              tmp.append(COMPRASION_END_TEMPLATE);
-              stack.push(tmp.toString());
-            }
-            continue;
-          }
-
-          // EqualTo, LessThanOrEqualTo, NotEqualTo, LessThan, GreaterThanOrEqualTo, GreaterThan
-          UniverseNodeInfo rightOperandInfo = null;
-          if (rightOperand.startsWith("[") && rightOperand.endsWith("]")) {
-            rightOperandInfo = nodeInfos.get(rightOperand);
             if (rightOperandInfo == null) {
               throw new UniverseException(String.format("Not found information about: \"%s\"",
                   rightOperand));
             }
+            rightOperand = String.format(PREDEFINED_FILTER_TEMPLATE,
+                rightOperandInfo.getNodePath(), rightOperandInfo.getId());
           }
-          if (OPERATIONS.containsKey(token)) {
-            if (rightOperandInfo != null) {
-              tmp.append(String.format(COMPRASION_START_TEMPLATE, leftOperandInfo.getNodePath(),
-                  operator, leftOperandInfo.getId()));
-              tmp.append(String.format(OBJECT_OPERAND_TEMPLATE, rightOperandInfo.getId(),
-                  rightOperandInfo.getNodePath()));
-              tmp.append(COMPRASION_END_TEMPLATE);
-            } else {
-              String type = rightOperand.startsWith("'") ? "String" : "Numeric";
-              String value = rightOperand.replaceAll("^'|'$", "");
-              tmp.append(String.format(COMPRASION_START_TEMPLATE, leftOperandInfo.getNodePath(),
-                  operator, leftOperandInfo.getId()));
-              tmp.append(CONST_OPERAND_START_TEMPLATE);
-              tmp.append(String.format(CONST_OPERAND_VALUE_TEMPLATE, type, value));
-              tmp.append(CONST_OPERAND_END_TEMPLATE);
-              tmp.append(COMPRASION_END_TEMPLATE);
+          if (leftOperand.matches("^\\[.*\\]$")) {
+            UniverseNodeInfo leftOperandInfo = nodeInfos.get(leftOperand);
+            if (leftOperandInfo == null) {
+              throw new UniverseException(String.format("Not found information about: \"%s\"",
+                  leftOperand));
             }
-            stack.push(tmp.toString());
-            continue;
+            leftOperand = String.format(PREDEFINED_FILTER_TEMPLATE, leftOperandInfo.getNodePath(),
+                leftOperandInfo.getId());
           }
-          throw new UniverseException(String.format("Incorrect syntax after: \"%s\"", leftOperand));
+          tmp.append(String.format("<%s>\n", operator));
+          tmp.append(leftOperand);
+          tmp.append("\n");
+          tmp.append(rightOperand);
+          tmp.append("\n");
+          tmp.append(String.format("</%s>\n", operator));
+          stack.push(tmp.toString());
+          continue;
         }
+
+        UniverseNodeInfo leftOperandInfo = nodeInfos.get(leftOperand);
+        if (leftOperandInfo == null) {
+          throw new UniverseException(String.format("Not found information about: \"%s\"",
+              leftOperand));
+        }
+        if (token.equalsIgnoreCase(MARKER_IN) || token.equalsIgnoreCase(MARKER_NOT_IN)) {
+          String listValues = rightOperand.replaceAll("^\\(|\\)$", "").trim();
+          boolean startItem = false;
+          List<String> values = new ArrayList<>();
+          StringBuilder value = new StringBuilder();
+          boolean isNumericList = false;
+          if (listValues.charAt(0) != '\'') {
+            isNumericList = true;
+          }
+          if (isNumericList) {
+            String[] nums = rightOperand.split(",");
+            for (String num : nums) {
+              values.add(num.trim());
+            }
+          } else {
+            for (int i = 0; i < listValues.length(); i++) {
+              char c = listValues.charAt(i);
+              if (c == '\'' && (i == 0 || listValues.charAt(i - 1) != '\\')) {
+                startItem = !startItem;
+                if (!startItem) {
+                  values.add(value.toString());
+                  value = new StringBuilder();
+                }
+                continue;
+              }
+              if (startItem) {
+                value.append(c);
+              }
+            }
+          }
+
+          if (!values.isEmpty()) {
+            tmp.append(String.format(COMPRASION_START_TEMPLATE, leftOperandInfo.getNodePath(),
+                operator, leftOperandInfo.getId()));
+            tmp.append(CONST_OPERAND_START_TEMPLATE);
+            String type = isNumericList ? "Numeric" : "String";
+            for (String v : values) {
+              tmp.append(String.format(CONST_OPERAND_VALUE_TEMPLATE, type, v));
+            }
+            tmp.append(CONST_OPERAND_END_TEMPLATE);
+            tmp.append(COMPRASION_END_TEMPLATE);
+            stack.push(tmp.toString());
+          }
+          continue;
+        }
+
+        // EqualTo, LessThanOrEqualTo, NotEqualTo, LessThan, GreaterThanOrEqualTo, GreaterThan
+        UniverseNodeInfo rightOperandInfo = null;
+        if (rightOperand.startsWith("[") && rightOperand.endsWith("]")) {
+          rightOperandInfo = nodeInfos.get(rightOperand);
+          if (rightOperandInfo == null) {
+            throw new UniverseException(String.format("Not found information about: \"%s\"",
+                rightOperand));
+          }
+        }
+        if (OPERATIONS.containsKey(token)) {
+          if (rightOperandInfo != null) {
+            tmp.append(String.format(COMPRASION_START_TEMPLATE, leftOperandInfo.getNodePath(),
+                operator, leftOperandInfo.getId()));
+            tmp.append(String.format(OBJECT_OPERAND_TEMPLATE, rightOperandInfo.getId(),
+                rightOperandInfo.getNodePath()));
+            tmp.append(COMPRASION_END_TEMPLATE);
+          } else {
+            String type = rightOperand.startsWith("'") ? "String" : "Numeric";
+            String value = rightOperand.replaceAll("^'|'$", "");
+            tmp.append(String.format(COMPRASION_START_TEMPLATE, leftOperandInfo.getNodePath(),
+                operator, leftOperandInfo.getId()));
+            tmp.append(CONST_OPERAND_START_TEMPLATE);
+            tmp.append(String.format(CONST_OPERAND_VALUE_TEMPLATE, type, value));
+            tmp.append(CONST_OPERAND_END_TEMPLATE);
+            tmp.append(COMPRASION_END_TEMPLATE);
+          }
+          stack.push(tmp.toString());
+          continue;
+        }
+        throw new UniverseException(String.format("Incorrect syntax after: \"%s\"", leftOperand));
       }
     }
 
@@ -609,5 +621,39 @@ public class UniverseUtil {
   private String revertReplace(String s) {
     return s.replaceAll(MARKER_BACKSPACE, " ").replaceAll(MARKER_LEFT_BRACE, "(")
         .replaceAll(MARKER_RIGHT_BRACE, ")");
+  }
+
+  private boolean isFilter(String buf, String after) {
+    boolean result = false;
+    String[] parts = buf.trim().split("\\s");
+    if (parts[parts.length - 1].matches("^\\[.*\\]$")) {
+      // check before
+      if (parts.length == 1) {
+        result = true;
+      } else {
+        int count = parts.length - 2;
+        Set<String> operations = new HashSet(OPERATIONS.keySet());
+        operations.remove(MARKER_AND);
+        operations.remove(MARKER_OR);
+        while (count >= 0) {
+          String p = parts[count];
+          if (StringUtils.isNotBlank(p)) {
+            if (!operations.contains(p)) {
+              result = true;
+              break;
+            }
+          }
+          count--;
+        }
+      }
+      after = after.trim();
+      // check after
+      if (result && !after.startsWith("and") && !after.startsWith("or") &&
+          !after.startsWith(";") && StringUtils.isNotBlank(after)) {
+        result = false;
+      }
+    }
+
+    return result;
   }
 }
