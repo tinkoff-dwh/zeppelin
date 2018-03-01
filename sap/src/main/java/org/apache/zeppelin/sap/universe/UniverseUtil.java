@@ -383,6 +383,10 @@ public class UniverseUtil {
       }
     }
 
+    if (wherePart && StringUtils.isBlank(where)) {
+      throw new UniverseException("Incorrect block where");
+    }
+
     UniverseQuery universeQuery = new UniverseQuery(createTableName, select.toString().trim(),
         where, universeInfo);
 
