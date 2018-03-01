@@ -212,13 +212,16 @@ public class UniverseUtil {
         continue;
       }
 
-      if (!wherePart && pathClosed && singleQuoteClosed
-          && (buf.toString().toLowerCase().endsWith("where") || i == array.length - 1)) {
-        wherePart = true;
-        selectPart = false;
-        select.append(parseResultObj(resultObj.toString().replaceAll("(?i)wher$", ""), nodeInfos));
-        select.append(RESULT_END_TEMPLATE);
-        continue;
+      if (!wherePart && pathClosed && singleQuoteClosed) {
+        if (buf.toString().toLowerCase().endsWith("where")) {
+          wherePart = true;
+        }
+        if (buf.toString().toLowerCase().endsWith("where") || i == array.length - 1) {
+          selectPart = false;
+          select.append(parseResultObj(resultObj.toString().replaceAll("(?i)wher$", ""), nodeInfos));
+          select.append(RESULT_END_TEMPLATE);
+          continue;
+        }
       }
 
       if (selectPart) {

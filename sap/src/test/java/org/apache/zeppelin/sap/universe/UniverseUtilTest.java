@@ -25,6 +25,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -181,13 +182,13 @@ public class UniverseUtilTest {
             " operator=\"InList\" id=\"name2id\">\n" +
             "<constantOperand>\n" +
             "<value>\n" +
-            "<caption type=\"Numeric\">(1</caption>\n" +
+            "<caption type=\"Numeric\">1</caption>\n" +
             "</value>\n" +
             "<value>\n" +
             "<caption type=\"Numeric\">3</caption>\n" +
             "</value>\n" +
             "<value>\n" +
-            "<caption type=\"Numeric\">4)</caption>\n" +
+            "<caption type=\"Numeric\">4</caption>\n" +
             "</value>\n" +
             "</constantOperand>\n" +
             "</comparisonFilter>\n\n" +
@@ -208,5 +209,135 @@ public class UniverseUtilTest {
     String request = "universe [testUniverse];\n" +
         "select [not].[exist];";
     universeUtil.convertQuery(request, universeClient, null);
+  }
+
+
+  @Test(expected = UniverseException.class)
+  public void testFailConvertWithIncorrectCondition() throws UniverseException {
+    String request = "universe [testUniverse];\n" +
+        "select [Measure].[name5]\n" +
+        "where [Filter].[name;";
+    universeUtil.convertQuery(request, universeClient, null);
+  }
+
+  @Test
+  public void testFiltersConditions() throws UniverseException {
+    String request1 = "universe [testUniverse];\n" +
+        "select [Measure].[name5]\n" +
+        "where [Filter].[name3];";
+    String request2 = "universe [testUniverse];\n" +
+        "select [Measure].[name5]\n" +
+        "where [Measure].[name5] > 2 and [Filter].[name3];";
+    String request3 = "universe [testUniverse];\n" +
+        "select [Measure].[name5]\n" +
+        "where [Filter].[name3] or [Measure].[name5];";
+    String request4 = "universe [testUniverse];\n" +
+        "select [Measure].[name5]\n" +
+        "where [Filter].[name3] and [Measure].[name5] is null;";
+    UniverseQuery universeQuery = universeUtil.convertQuery(request1, universeClient, null);
+    assertEquals("<predefinedFilter path=\"Filter|folder\\name3|filter\" id=\"name3id\"/>\n",
+        universeQuery.getWhere());
+    universeQuery = universeUtil.convertQuery(request2, universeClient, null);
+    assertEquals("<and>\n" +
+            "<comparisonFilter path=\"Measure|folder\\name5|measure\" operator=\"GreaterThan\" id=\"name5id\">\n" +
+            "<constantOperand>\n" +
+            "<value>\n" +
+            "<caption type=\"Numeric\">2</caption>\n" +
+            "</value>\n" +
+            "</constantOperand>\n" +
+            "</comparisonFilter>\n\n" +
+            "<predefinedFilter path=\"Filter|folder\\name3|filter\" id=\"name3id\"/>\n\n" +
+            "</and>\n",
+        universeQuery.getWhere());
+    universeQuery = universeUtil.convertQuery(request3, universeClient, null);
+    assertEquals("<or>\n" +
+            "<predefinedFilter path=\"Filter|folder\\name3|filter\" id=\"name3id\"/>\n\n" +
+            "<predefinedFilter path=\"Measure|folder\\name5|measure\" id=\"name5id\"/>\n\n" +
+            "</or>\n",
+        universeQuery.getWhere());
+    universeQuery = universeUtil.convertQuery(request4, universeClient, null);
+    assertEquals("<and>\n" +
+            "<predefinedFilter path=\"Filter|folder\\name3|filter\" id=\"name3id\"/>\n\n" +
+            "<comparisonFilter id=\"name5id\" path=\"Measure|folder\\name5|measure\" operator=\"IsNull\"/>\n\n" +
+            "</and>\n",
+        universeQuery.getWhere());
+  }
+
+  @Test
+  public void testNestedConditions() throws UniverseException {
+    String request = "universe [testUniverse];\n" +
+        "select [Dimension].[Test].[name2]\n" +
+        "where ([Measure].[name5] = 'text' or ([Dimension].[Test].[name1] in ('1','2', '3') and\n" +
+        "[Dimension].[Test].[name2] is not null)) and ([Filter].[name4] or [Measure].[name5] >=12)\n" +
+        "or [Dimension].[Test].[name2] not in (31, 65, 77);";
+    UniverseQuery universeQuery = universeUtil.convertQuery(request, universeClient, null);
+    assertEquals("<or>\n" +
+            "<and>\n" +
+            "<or>\n" +
+            "<comparisonFilter path=\"Measure|folder\\name5|measure\" operator=\"EqualTo\" id=\"name5id\">\n" +
+            "<constantOperand>\n" +
+            "<value>\n" +
+            "<caption type=\"String\">text</caption>\n" +
+            "</value>\n" +
+            "</constantOperand>\n" +
+            "</comparisonFilter>\n\n" +
+            "<and>\n" +
+            "<comparisonFilter path=\"Dimension|folder\\Test|folder\\name1|dimension\" operator=\"InList\" id=\"name1id\">\n" +
+            "<constantOperand>\n" +
+            "<value>\n" +
+            "<caption type=\"String\">1</caption>\n" +
+            "</value>\n" +
+            "<value>\n" +
+            "<caption type=\"String\">2</caption>\n" +
+            "</value>\n" +
+            "<value>\n" +
+            "<caption type=\"String\">3</caption>\n" +
+            "</value>\n" +
+            "</constantOperand>\n" +
+            "</comparisonFilter>\n\n" +
+            "<comparisonFilter id=\"name2id\" path=\"Dimension|folder\\Test|folder\\name2|dimension\" operator=\"IsNotNull\"/>\n\n" +
+            "</and>\n\n" +
+            "</or>\n\n" +
+            "<or>\n" +
+            "<predefinedFilter path=\"Filter|folder\\name4|filter\" id=\"name4id\"/>\n\n" +
+            "<comparisonFilter path=\"Measure|folder\\name5|measure\" operator=\"GreaterThanOrEqualTo\" id=\"name5id\">\n" +
+            "<constantOperand>\n" +
+            "<value>\n" +
+            "<caption type=\"Numeric\">12</caption>\n" +
+            "</value>\n" +
+            "</constantOperand>\n" +
+            "</comparisonFilter>\n\n" +
+            "</or>\n\n" +
+            "</and>\n\n" +
+            "<comparisonFilter path=\"Dimension|folder\\Test|folder\\name2|dimension\" operator=\"NotInList\" id=\"name2id\">\n" +
+            "<constantOperand>\n" +
+            "<value>\n" +
+            "<caption type=\"Numeric\">31</caption>\n" +
+            "</value>\n" +
+            "<value>\n" +
+            "<caption type=\"Numeric\">65</caption>\n" +
+            "</value>\n" +
+            "<value>\n" +
+            "<caption type=\"Numeric\">77</caption>\n" +
+            "</value>\n" +
+            "</constantOperand>\n" +
+            "</comparisonFilter>\n\n" +
+            "</or>\n",
+        universeQuery.getWhere());
+  }
+
+  @Test
+  public void testWithoutConditions() throws UniverseException {
+    String request = "universe [testUniverse];\n" +
+        "select [Dimension].[Test].[name2], [Measure].[name5],\n" +
+        "[Dimension].[Test].[name1] ;";
+    UniverseQuery universeQuery = universeUtil.convertQuery(request, universeClient, null);
+    assertNull(universeQuery.getWhere());
+    assertEquals("<resultObjects>\n" +
+            "<resultObject path=\"Dimension|folder\\Test|folder\\name2|dimension\" id=\"name2id\"/>\n" +
+            "<resultObject path=\"Measure|folder\\name5|measure\" id=\"name5id\"/>\n" +
+            "<resultObject path=\"Dimension|folder\\Test|folder\\name1|dimension\" id=\"name1id\"/>\n" +
+            "</resultObjects>",
+        universeQuery.getSelect());
   }
 }
