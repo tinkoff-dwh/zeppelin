@@ -550,7 +550,7 @@ public class UniverseUtil {
             isNumericList = true;
           }
           if (isNumericList) {
-            String[] nums = rightOperand.split(",");
+            String[] nums = listValues.split(",");
             for (String num : nums) {
               values.add(num.trim());
             }
